@@ -1,0 +1,7 @@
+build
+example_api_data
+node_modules
+src/ignore
+
+*.log
+.env
