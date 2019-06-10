@@ -4,7 +4,7 @@ import { createLogger, format, transports } from 'winston';
 const logger = createLogger({
   transports: [
     new (transports.Console)({
-      level: 'debug',
+      level: process.env.LOGLEVEL || 'info',
       format: format.combine(
         format.align(),
         format.colorize(),

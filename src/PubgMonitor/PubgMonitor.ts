@@ -50,7 +50,9 @@ export class PubgMonitor {
   private async poll() {
     try {
       const latestMatches = await this.getLatestMatches();
-      this.handleLatestMatches(latestMatches);
+      const newPlayerMatches = this.getNewPlayerMatches(latestMatches);
+      Object.entries(newPlayerMatches)
+        .forEach(async ([matchId, players]) => this.handleNewMatch(matchId, players));
     } catch (e) {
       if (e instanceof RequestError && e.status === 429) {
         this.log.info(`Rate limit detected, backing off for ${PubgMonitor.backOffTimeSeconds} seconds`);
@@ -76,23 +78,27 @@ export class PubgMonitor {
     }, {});
   }
 
-  private handleLatestMatches(latestMatches: IDictionary) {
-    Object.entries(latestMatches)
-      .filter(([player, matchId]) => this.lastMatches[player] !== matchId)
-      .forEach(async ([player, matchId]) => {
-        this.log.info(`New match found: ${matchId}`);
-        try {
-          const stats = await this.getPlayerMatchStats(matchId);
-          this.notify(stats);
-          this.lastMatches[player] = matchId;
-        } catch (e) {
-          this.log.error(e);
-        }
-      });
+  private getNewPlayerMatches(latestMatches: IDictionary) {
+      return Object.entries(latestMatches)
+        .reduce((newPlayerMatches, [player, matchId]) => {
+          if (this.lastMatches[player] !== matchId) {
+            newPlayerMatches[matchId] = newPlayerMatches[matchId] || new Set();
+            newPlayerMatches[matchId].add(player);
+          }
+          return newPlayerMatches;
+        }, {} as { [k: string]: Set<string> });
   }
 
-  private notify(stats: PlayerMatchStats[]) {
-    this.listeners.forEach((fn) => fn(stats));
+  private async handleNewMatch(matchId: string, players: Set<string>) {
+      this.log.info(`New match found: ${matchId}`);
+
+      try {
+        const stats = await this.getPlayerMatchStats(matchId);
+        this.listeners.forEach((fn) => fn(stats));
+        players.forEach((player) => this.lastMatches[player] = matchId);
+      } catch (e) {
+        this.log.error(e);
+      }
   }
 
   private async getPlayerMatchStats(id: string) {
