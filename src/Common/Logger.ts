@@ -1,5 +1,8 @@
+import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { createLogger, format, transports } from 'winston';
+
+dotenv.config();
 
 const logger = createLogger({
   transports: [

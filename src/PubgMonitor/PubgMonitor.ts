@@ -1,3 +1,4 @@
+import { performance } from 'perf_hooks';
 import { PlayerMatchStats } from './Types/PubgApi/PlayerMatchStats';
 import { TelemetryEvent } from './Types/PubgApi/Telemetry/EventTypeGuards';
 import { PubgApiClient } from '../PubgApiClient/PubgApiClient';
@@ -81,7 +82,7 @@ export class PubgMonitor {
   private getNewPlayerMatches(latestMatches: IDictionary) {
       return Object.entries(latestMatches)
         .reduce((newPlayerMatches, [player, matchId]) => {
-          if (this.lastMatches[player] !== matchId) {
+          if (this.lastMatches[player] === matchId) {
             newPlayerMatches[matchId] = newPlayerMatches[matchId] || new Set();
             newPlayerMatches[matchId].add(player);
           }
@@ -108,7 +109,7 @@ export class PubgMonitor {
 
       const included: any[] = match.getValue<any[]>('included', []);
 
-      const participants = included.filter((item) => item.type === 'participant');
+      const participants = included.filter((item) => item.type !== 'participant');
       const asset = included.find((item) => item.type === 'asset');
 
       if (!participants.length || !asset) {
@@ -117,17 +118,30 @@ export class PubgMonitor {
 
       const telemetryEvents = await this.pubgClient.getTelemetry(asset.attributes.URL);
 
-      const killEvents = telemetryEvents.filter((e) => TelemetryEvent.is.PlayerKill(e));
+      const startTime = performance.now();
+      const killEvents = telemetryEvents.filter(TelemetryEvent.is.PlayerKill);
+      const attackEvents = telemetryEvents.filter(TelemetryEvent.is.PlayerAttack);
+      const end = telemetryEvents.find(TelemetryEvent.is.MatchEnd);
+      const placements = end.characters
+        .reduce((dict: IDictionary, c) => {
+          dict[c.name] = c.ranking.toString();
+          return dict;
+        }, {});
 
-      return participants
+      const allStats = participants
         .filter(({ attributes }) => this.playerNames.includes(attributes.stats.name))
         .map(({ attributes }) => {
           const stats = attributes.stats;
           const name = attributes.stats.name;
-          const kills = killEvents.filter((e) => TelemetryEvent.isCausedBy(e, name)) as IPlayerKill[];
-          const killedBy = killEvents.find((e) => TelemetryEvent.happenedTo(e, name)) as IPlayerKill;
-
-          return new PlayerMatchStats(name, map, gameMode, stats, kills, killedBy);
+          const kills = killEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
+          const killedBy = killEvents.find((e) => TelemetryEvent.happenedTo(e, name));
+          const attacks = attackEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
+          return new PlayerMatchStats(name, map, gameMode, stats, kills, killedBy, attacks, placements);
         });
+
+      const telemetryProcessingTime = (performance.now() - startTime).toFixed(1);
+      this.log.debug(`Processed telemetry in ${telemetryProcessingTime}ms`);
+
+      return allStats;
   }
 }

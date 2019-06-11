@@ -9,7 +9,9 @@ export class PlayerMatchStats {
     public gameMode: string,
     public stats: { [key: string]: string | number },
     private kills: IPlayerKill[],
-    private death: IPlayerKill) {
+    private death: IPlayerKill,
+    private shotsFired: IPlayerAttack[],
+    private placements: IDictionary) {
   }
 
   get damage() {
@@ -36,23 +38,17 @@ export class PlayerMatchStats {
     }
   }
 
-  get killReport() {
-    if (this.kills && this.kills.length) return this.fullKillReport;
-
-    const { kills, headshotKills, roadKills } = this.stats;
-
-    const details: string[] = [];
-
-    if (headshotKills) details.push(`${headshotKills} by headshot`);
-    if (roadKills) details.push(`${roadKills} by vehicle`);
-
-    return this.buildReport(kills as string, details);
+  get shotsFiredCount() {
+    const bullets = this.shotsFired.filter((e) => e.weapon.category === 'Weapon');
+    return bullets.length;
   }
 
-  get fullKillReport() {
-    return this.kills
-      .map((k) => this.formatKillEvent(k))
-      .join('\n');
+  get killReport() {
+    return this.kills.length ?
+      this.kills
+        .map((k) => this.formatKillEvent(k))
+        .join('\n') :
+      'None';
   }
 
   get distanceReport() {
@@ -61,16 +57,19 @@ export class PlayerMatchStats {
 
     const details = [];
 
-    if (walkDistance) details.push(`${Math.round(Number(walkDistance))}m on foot`);
-    if (rideDistance) details.push(`${Math.round(Number(rideDistance))}m by vehicle`);
-    if (swimDistance) details.push(`${Math.round(Number(swimDistance))}m in water`);
+    if (walkDistance) details.push(`${Math.round(Number(walkDistance))}m :walking:`);
+    if (rideDistance) details.push(`${Math.round(Number(rideDistance))}m :red_car:`);
+    if (swimDistance) details.push(`${Math.round(Number(swimDistance))}m :swimmer:`);
 
-    return this.buildReport(`${total}m`, details);
+    if (details.length === 1) return details[0];
+
+    return `${total}m (${details.join(',')})`;
   }
 
   private formatKillEvent(kill: IPlayerKill, death?: boolean) {
     const killer = death ? kill.killer.name : kill.victim.name;
     const distance = kill.distance ? Math.round(kill.distance / 100) : 0;
+    const placement = this.placements[killer] || '?';
 
     let reason = DamageReason[kill.damageReason];
     reason = reason ? ` - ${reason}` : '';
@@ -79,13 +78,6 @@ export class PlayerMatchStats {
     if (weapon === 'Bluezone') return weapon;
     weapon = weapon === 'Player' ? 'Down and Out' : weapon;
 
-    return `${killer} from ${distance}m (${weapon}${reason})`;
-  }
-
-  private buildReport(baseMessage: string, details: string[]) {
-    let message = baseMessage;
-    const detailsString = details.join(', ');
-    if (detailsString) message += ` (${detailsString})`;
-    return message;
+    return `**${killer}** (#${placement}) from ${distance}m *(${weapon}${reason})*`;
   }
 }
