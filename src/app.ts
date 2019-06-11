@@ -4,6 +4,7 @@ import { MockDiscordBot } from './DiscordBot/MockDiscordBot';
 import { DiscordBot as DiscordBot } from './DiscordBot/DiscordBot';
 import { MessageBuilder } from './Common/MessageBuilder';
 import { PubgMonitor } from './PubgMonitor/PubgMonitor';
+import { ImageBuilder } from './ImageBuilder/ImageBuilder';
 
 (async () => {
   dotenv.config();
@@ -31,11 +32,19 @@ import { PubgMonitor } from './PubgMonitor/PubgMonitor';
   await discordBot.connect();
 
   const pubgMonitor = new PubgMonitor(pubgToken, playerNames, pollTimeMs);
+  const imageBuilder = new ImageBuilder();
 
   pubgMonitor.subscribe((stats) => {
-    stats.forEach((s) => {
+    stats.forEach(async (s) => {
       try {
         const message = MessageBuilder.buildMatchMessage(s);
+        const image = await imageBuilder.draw(s);
+        if (image) {
+          message
+            .attachFile({ name: 'image.png', attachment: image })
+            .setImage('attachment://image.png');
+        }
+
         discordBot.postMessage(message, discordChannel);
       } catch (e) {
         log.error(`Unable to create and post message for ${s ? s.name : 'Unknown player'}.`);

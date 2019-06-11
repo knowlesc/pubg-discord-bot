@@ -39,10 +39,7 @@ export class Logger {
   }
 
   error(error: string | Error, category?: string) {
-    const message = error instanceof Error
-      ? `${error.name}: ${error.message}`
-      : `Error: ${error}`;
-
+    const message = error instanceof Error ? error.stack : `Error: ${error}`;
     logger.log('error', this.buildMessage(message, category));
   }
 

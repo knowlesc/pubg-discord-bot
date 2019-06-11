@@ -4,14 +4,15 @@ import { DamageCauserName } from './Dictionaries/DamageCauserName';
 export class PlayerMatchStats {
 
   constructor(
-    public name: string,
-    public map: string,
-    public gameMode: string,
-    public stats: { [key: string]: string | number },
-    private kills: IPlayerKill[],
-    private death: IPlayerKill,
-    private shotsFired: IPlayerAttack[],
-    private placements: IDictionary) {
+    readonly name: string,
+    readonly map: string,
+    readonly gameMode: string,
+    readonly stats: { [key: string]: string | number },
+    readonly kills: IPlayerKill[],
+    readonly death: IPlayerKill,
+    readonly shotsFired: IPlayerAttack[],
+    readonly placements: IDictionary,
+    readonly coordinates: ILocation[]) {
   }
 
   get damage() {

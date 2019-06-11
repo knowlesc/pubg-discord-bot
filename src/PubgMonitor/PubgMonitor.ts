@@ -12,7 +12,7 @@ export class PubgMonitor {
   private pubgClient: PubgApiClient;
   private interval: NodeJS.Timeout;
   private lastMatches: IDictionary = {};
-  private listeners: Array<(...args: any[]) => void> = [];
+  private listeners: Array<(stats: PlayerMatchStats[]) => void> = [];
 
   constructor(
     private pubgToken: string,
@@ -22,7 +22,7 @@ export class PubgMonitor {
     this.pubgClient = new PubgApiClient(this.pubgToken);
   }
 
-  subscribe(listener: (playerMatchStats: PlayerMatchStats[]) => void) {
+  subscribe(listener: (stats: PlayerMatchStats[]) => void) {
     this.listeners.push(listener);
   }
 
@@ -82,7 +82,7 @@ export class PubgMonitor {
   private getNewPlayerMatches(latestMatches: IDictionary) {
       return Object.entries(latestMatches)
         .reduce((newPlayerMatches, [player, matchId]) => {
-          if (this.lastMatches[player] === matchId) {
+          if (this.lastMatches[player] !== matchId) {
             newPlayerMatches[matchId] = newPlayerMatches[matchId] || new Set();
             newPlayerMatches[matchId].add(player);
           }
@@ -109,7 +109,7 @@ export class PubgMonitor {
 
       const included: any[] = match.getValue<any[]>('included', []);
 
-      const participants = included.filter((item) => item.type !== 'participant');
+      const participants = included.filter((item) => item.type === 'participant');
       const asset = included.find((item) => item.type === 'asset');
 
       if (!participants.length || !asset) {
@@ -136,7 +136,13 @@ export class PubgMonitor {
           const kills = killEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
           const killedBy = killEvents.find((e) => TelemetryEvent.happenedTo(e, name));
           const attacks = attackEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
-          return new PlayerMatchStats(name, map, gameMode, stats, kills, killedBy, attacks, placements);
+          const movements = telemetryEvents
+            .filter((e) => TelemetryEvent.is.PlayerPosition(e)
+              && TelemetryEvent.isCausedBy(e, name)
+              && e.common.isGame >= 1)
+            .map((e: IPlayerPosition) => e.character.location);
+
+          return new PlayerMatchStats(name, map, gameMode, stats, kills, killedBy, attacks, placements, movements)
         });
 
       const telemetryProcessingTime = (performance.now() - startTime).toFixed(1);

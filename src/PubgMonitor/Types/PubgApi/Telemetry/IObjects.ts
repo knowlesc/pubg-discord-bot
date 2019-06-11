@@ -6,7 +6,7 @@ interface ICharacter {
   name: string;
   teamId: number;
   health: number;
-  location: Location;
+  location: ILocation;
   ranking: number;
   accountId: string;
   isInBlueZone: number;

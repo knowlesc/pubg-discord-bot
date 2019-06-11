@@ -1,4 +1,5 @@
 import { Logger } from '../Common/Logger';
+import { RichEmbed } from 'discord.js';
 
 export class MockDiscordBot implements IDiscordBot {
   log: Logger;
@@ -12,8 +13,8 @@ export class MockDiscordBot implements IDiscordBot {
     return Promise.resolve();
   }
 
-  postMessage(message: any) {
-    this.log.info(JSON.stringify(message, null, '  '));
+  postMessage(message: RichEmbed) {
+    this.log.info(`${message.title} ${JSON.stringify(message.image)}`);
   }
 
   onMessage(fn: (content: string) => void) {
