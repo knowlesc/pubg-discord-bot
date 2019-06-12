@@ -53,7 +53,7 @@ export class ImageBuilder {
     }
 
     const imageProcessingTime = (performance.now() - startTime).toFixed(1);
-    this.log.debug(`Drew image in ${imageProcessingTime}ms`);
+    this.log.info(`Drew image in ${imageProcessingTime}ms`);
 
     return canvas.toBuffer();
   }

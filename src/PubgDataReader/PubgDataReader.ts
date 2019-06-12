@@ -57,7 +57,7 @@ export class PubgDataReader {
       });
 
     const telemetryProcessingTime = (performance.now() - startTime).toFixed(1);
-    this.log.debug(`Processed telemetry in ${telemetryProcessingTime}ms`);
+    this.log.info(`Processed telemetry in ${telemetryProcessingTime}ms`);
 
     return allStats;
   }

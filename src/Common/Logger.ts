@@ -15,7 +15,7 @@ const logger = createLogger({
     }),
     new (transports.File)({
       filename: path.join(path.dirname(require.main.filename), '../app.log'),
-      level: 'debug',
+      level: process.env.LOGLEVEL || 'info',
       options: { flags: 'w' },
       format: format.combine(
         format.timestamp(),
