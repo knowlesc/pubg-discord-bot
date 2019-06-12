@@ -1,18 +1,18 @@
-import * as Discord from 'discord.js';
+import { Client, RichEmbed, TextChannel, Message } from 'discord.js';
 import { Logger } from '../Common/Logger';
 
 export class DiscordBot implements IDiscordBot {
   private name: string;
   private log: Logger;
-  private client: Discord.Client;
-  private listeners: Array<(content: string) => void> = [];
+  private client: Client;
+  private listeners: Array<(content: string, channelId: string) => void> = [];
 
   constructor(private token: string, debug = false) {
     if (!token) throw new Error('No token provided to bot');
 
     this.log = new Logger('DiscordBot');
 
-    this.client = new Discord.Client();
+    this.client = new Client();
     this.client.on('disconnect', () => this.log.info('Disconnected from Discord'));
     this.client.on('reconnecting', () => this.log.info('Reconnecting to Discord'));
     this.client.on('message', (message) => this.handleMessage(message));
@@ -38,31 +38,30 @@ export class DiscordBot implements IDiscordBot {
     });
   }
 
-  postMessage(message: Discord.RichEmbed, channelName: string) {
-    const channel = this.client.channels
-      .find((c: Discord.TextChannel) => c.name === channelName);
+  postMessage(message: string | RichEmbed, channelId: string) {
+    const channel = this.client.channels.get(channelId);
 
     if (!channel) {
-      this.log.error(`Channel not found: ${channelName}`);
+      this.log.error(`Channel not found: ${channelId}`);
       return;
     }
 
     if (channel.type !== 'text') {
-      this.log.error(`Channel ${channelName} type is not text: ${channel.type}`);
+      this.log.error(`Channel ${channelId} type is not text: ${channel.type}`);
       return;
     }
 
-    this.log.info(`Posting message to channel ${channelName}`);
-    (channel as Discord.TextChannel).send(message);
+    this.log.info(`Posting message to channel ${channelId}`);
+    (channel as TextChannel).send(message);
   }
 
-  onMessage(fn: (content: string) => void) {
+  onMessage(fn: (content: string, channelId: string) => void) {
     this.listeners.push(fn);
   }
 
-  private handleMessage({ content }: Discord.Message) {
+  private handleMessage({ content, channel }: Message) {
     const commandRegex = new RegExp(`^!${this.name}(.*)`);
     const groups = commandRegex.exec(content);
-    if (groups) this.listeners.forEach((fn) => fn(groups[1].trim()));
+    if (groups) this.listeners.forEach((fn) => fn(groups[1].trim(), channel.id));
   }
 }

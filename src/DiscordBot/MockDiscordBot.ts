@@ -13,11 +13,15 @@ export class MockDiscordBot implements IDiscordBot {
     return Promise.resolve();
   }
 
-  postMessage(message: RichEmbed) {
-    this.log.info(`${message.title} ${JSON.stringify(message.image)}`);
+  postMessage(message: string | RichEmbed, channelId: string) {
+    if (typeof message === 'string') {
+      this.log.info(`${message}`);
+    } else {
+      this.log.info(`${message.title} ${JSON.stringify(message.image)}`);
+    }
   }
 
-  onMessage(fn: (content: string) => void) {
+  onMessage(fn: (content: string, channel: any) => void) {
     this.log.info('onMessage');
   }
 }

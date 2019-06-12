@@ -1,25 +1,22 @@
-import { performance } from 'perf_hooks';
+import { PubgDataReader } from './../PubgDataReader/PubgDataReader';
 import { PlayerMatchStats } from './Types/PubgApi/PlayerMatchStats';
-import { TelemetryEvent } from './Types/PubgApi/Telemetry/EventTypeGuards';
 import { PubgApiClient } from '../PubgApiClient/PubgApiClient';
 import { Logger } from '../Common/Logger';
 import { RequestError } from '../Common/RequestError';
-import { MapName } from './Types/PubgApi/Dictionaries/MapName';
 
 export class PubgMonitor {
   private static readonly backOffTimeSeconds = 60;
   private log: Logger;
-  private pubgClient: PubgApiClient;
   private interval: NodeJS.Timeout;
   private lastMatches: IDictionary = {};
   private listeners: Array<(stats: PlayerMatchStats[]) => void> = [];
 
   constructor(
-    private pubgToken: string,
+    private pubgClient: PubgApiClient,
+    private pubgDataReader: PubgDataReader,
     private playerNames: string[],
     private pollTimeMs: number) {
     this.log = new Logger('PubgMonitor');
-    this.pubgClient = new PubgApiClient(this.pubgToken);
   }
 
   subscribe(listener: (stats: PlayerMatchStats[]) => void) {
@@ -46,6 +43,10 @@ export class PubgMonitor {
   stop() {
     this.log.info('Stopping polling');
     clearInterval(this.interval);
+  }
+
+  getLastMatchId(playerName: string) {
+    return this.lastMatches[playerName];
   }
 
   private async poll() {
@@ -94,60 +95,11 @@ export class PubgMonitor {
       this.log.info(`New match found: ${matchId}`);
 
       try {
-        const stats = await this.getPlayerMatchStats(matchId);
+        const stats = await this.pubgDataReader.getPlayerMatchStats(matchId);
         this.listeners.forEach((fn) => fn(stats));
         players.forEach((player) => this.lastMatches[player] = matchId);
       } catch (e) {
         this.log.error(e);
       }
-  }
-
-  private async getPlayerMatchStats(id: string) {
-      const match = await this.pubgClient.getMatch(id);
-      const map = MapName[match.getValue<string>('data.attributes.mapName')];
-      const gameMode = match.getValue<string>('data.attributes.gameMode');
-
-      const included: any[] = match.getValue<any[]>('included', []);
-
-      const participants = included.filter((item) => item.type === 'participant');
-      const asset = included.find((item) => item.type === 'asset');
-
-      if (!participants.length || !asset) {
-        throw new Error('Invalid match data');
-      }
-
-      const telemetryEvents = await this.pubgClient.getTelemetry(asset.attributes.URL);
-
-      const startTime = performance.now();
-      const killEvents = telemetryEvents.filter(TelemetryEvent.is.PlayerKill);
-      const attackEvents = telemetryEvents.filter(TelemetryEvent.is.PlayerAttack);
-      const end = telemetryEvents.find(TelemetryEvent.is.MatchEnd);
-      const placements = end.characters
-        .reduce((dict: IDictionary, c) => {
-          dict[c.name] = c.ranking.toString();
-          return dict;
-        }, {});
-
-      const allStats = participants
-        .filter(({ attributes }) => this.playerNames.includes(attributes.stats.name))
-        .map(({ attributes }) => {
-          const stats = attributes.stats;
-          const name = attributes.stats.name;
-          const kills = killEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
-          const killedBy = killEvents.find((e) => TelemetryEvent.happenedTo(e, name));
-          const attacks = attackEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
-          const movements = telemetryEvents
-            .filter((e) => TelemetryEvent.is.PlayerPosition(e)
-              && TelemetryEvent.isCausedBy(e, name)
-              && e.common.isGame >= 1)
-            .map((e: IPlayerPosition) => e.character.location);
-
-          return new PlayerMatchStats(name, map, gameMode, stats, kills, killedBy, attacks, placements, movements)
-        });
-
-      const telemetryProcessingTime = (performance.now() - startTime).toFixed(1);
-      this.log.debug(`Processed telemetry in ${telemetryProcessingTime}ms`);
-
-      return allStats;
   }
 }

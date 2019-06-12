@@ -1,9 +1,12 @@
+import { performance } from 'perf_hooks';
+import { Logger } from './../Common/Logger';
 import { PlayerMatchStats } from './../PubgMonitor/Types/PubgApi/PlayerMatchStats';
 import { createCanvas, CanvasRenderingContext2D, Image } from 'canvas';
 import { PubgMapImage } from './PubgMapImage';
 import { IconLoader } from './IconLoader';
 
 export class ImageBuilder {
+  private log: Logger;
   private icons: IconLoader;
   private defaultStyles: {
     strokeStyle: string | CanvasGradient | CanvasPattern;
@@ -15,12 +18,13 @@ export class ImageBuilder {
 
   constructor() {
     this.icons = new IconLoader();
+    this.log = new Logger('ImageBuilder');
   }
 
   async draw(stats: PlayerMatchStats) {
+    const startTime = performance.now();
     let coordinates = stats.coordinates;
     const mapName = stats.map;
-    const playerName = stats.name;
     const kills = stats.kills;
     const death = stats.death;
 
@@ -47,6 +51,9 @@ export class ImageBuilder {
     if (death) {
       this.drawIcon(ctx, this.convertCoord(map, death.victim.location), this.icons.playerDeath, 16);
     }
+
+    const imageProcessingTime = (performance.now() - startTime).toFixed(1);
+    this.log.debug(`Drew image in ${imageProcessingTime}ms`);
 
     return canvas.toBuffer();
   }

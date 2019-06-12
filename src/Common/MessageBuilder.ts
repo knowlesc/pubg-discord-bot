@@ -30,6 +30,12 @@ export class MessageBuilder {
     return message;
   }
 
+  static attachImage(message: RichEmbed, imageBuffer: Buffer) {
+    return message
+      .attachFile({ name: 'image.png', attachment: imageBuffer })
+      .setImage('attachment://image.png');
+  }
+
   private static codeBlock(message: string | number) {
     return `\`${message}\``;
   }

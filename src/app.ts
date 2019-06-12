@@ -1,9 +1,11 @@
 import * as dotenv from 'dotenv';
 import { Logger } from './Common/Logger';
-import { MockDiscordBot } from './DiscordBot/MockDiscordBot';
-import { DiscordBot as DiscordBot } from './DiscordBot/DiscordBot';
-import { MessageBuilder } from './Common/MessageBuilder';
+import { PubgDataReader } from './PubgDataReader/PubgDataReader';
+import { PubgApiClient } from './PubgApiClient/PubgApiClient';
 import { PubgMonitor } from './PubgMonitor/PubgMonitor';
+import { DiscordBot } from './DiscordBot/DiscordBot';
+import { MockDiscordBot } from './DiscordBot/MockDiscordBot';
+import { MessageBuilder } from './Common/MessageBuilder';
 import { ImageBuilder } from './ImageBuilder/ImageBuilder';
 
 (async () => {
@@ -31,7 +33,9 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
 
   await discordBot.connect();
 
-  const pubgMonitor = new PubgMonitor(pubgToken, playerNames, pollTimeMs);
+  const pubgApiClient = new PubgApiClient(pubgToken);
+  const pubgDataReader = new PubgDataReader(pubgApiClient);
+  const pubgMonitor = new PubgMonitor(pubgApiClient, pubgDataReader, playerNames, pollTimeMs);
   const imageBuilder = new ImageBuilder();
 
   pubgMonitor.subscribe((stats) => {
@@ -39,18 +43,38 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
       try {
         const message = MessageBuilder.buildMatchMessage(s);
         const image = await imageBuilder.draw(s);
-        if (image) {
-          message
-            .attachFile({ name: 'image.png', attachment: image })
-            .setImage('attachment://image.png');
-        }
-
+        if (image) MessageBuilder.attachImage(message, image);
         discordBot.postMessage(message, discordChannel);
       } catch (e) {
         log.error(`Unable to create and post message for ${s ? s.name : 'Unknown player'}.`);
         log.error(e);
       }
     });
+  });
+
+  discordBot.onMessage(async (content, channelId) => {
+    const splitContent = content.split(' ');
+    if (splitContent.length === 2
+      && splitContent[0] === 'lastMatch') {
+      const player = splitContent[1];
+      const lastMatchId = pubgMonitor.getLastMatchId(player);
+      if (!lastMatchId) {
+        discordBot.postMessage(`Last match for ${player} is not available.`, channelId);
+        return;
+      }
+
+      try {
+        discordBot.postMessage(`Generating last match info for ${player}, one minute.`, channelId);
+        const stats = await pubgDataReader.getPlayerMatchStats(lastMatchId, player);
+        const message = MessageBuilder.buildMatchMessage(stats[0]);
+        const image = await imageBuilder.draw(stats[0]);
+        if (image) MessageBuilder.attachImage(message, image);
+        discordBot.postMessage(message, channelId);
+      } catch (e) {
+        log.error(`Unable to create and post message for ${player}.`);
+        log.error(e);
+      }
+    }
   });
 
   const success = await pubgMonitor.init();
