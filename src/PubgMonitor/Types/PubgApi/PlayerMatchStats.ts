@@ -35,11 +35,11 @@ export class PlayerMatchStats {
     } else if (this.stats.deathType === 'logout') {
       return 'Disconnected';
     } else if (this.stats.deathType === 'alive') {
-      return 'Nobody';
+      return '';
     }
   }
 
-  get shotsFiredCount() {
+  get shotsCount() {
     const bullets = this.shotsFired.filter((e) => e.weapon.category === 'Weapon');
     return bullets.length;
   }
@@ -49,7 +49,7 @@ export class PlayerMatchStats {
       this.kills
         .map((k) => this.formatKillEvent(k))
         .join('\n') :
-      'None';
+      '';
   }
 
   get distanceReport() {
@@ -79,6 +79,6 @@ export class PlayerMatchStats {
     if (weapon === 'Bluezone') return weapon;
     weapon = weapon === 'Player' ? 'Down and Out' : weapon;
 
-    return `**${killer}** (#${placement}) from ${distance}m *(${weapon}${reason})*`;
+    return `${killer} (#${placement}) from ${distance}m *(${weapon}${reason})*`;
   }
 }

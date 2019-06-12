@@ -4,28 +4,53 @@ import { PlayerMatchStats } from '../PubgMonitor/Types/PubgApi/PlayerMatchStats'
 export class MessageBuilder {
   static buildMatchMessage(data: PlayerMatchStats) {
     const message = new RichEmbed();
+    const { map, gameMode, name, shotsCount, damage, killReport, deathReport, distanceReport, timeSurvived } = data;
+    const { winPlace, heals, boosts, revives, DBNOs, assists } = data.stats;
 
-    const win = data.stats.winPlace === 1;
+    const win = winPlace === 1;
     const emoji = win ? ':trophy:' : ':skull_crossbones:';
 
     message.setColor(win ? [216, 173, 17] : [179, 39, 79]);
-    message.setTitle(`${emoji} Match Stats for ${data.name}`);
-    message.setDescription(`Map: ${data.map} (${data.gameMode})`);
+    message.setTitle(`${emoji} Match Stats for ${name}`);
+    message.setDescription(`Placed #${winPlace} on ${map} (${gameMode})`);
 
-    message.addField('Rank', data.stats.winPlace, true);
-    message.addField('Time Survived', data.timeSurvived, true);
-    message.addField('Distance Travelled', data.distanceReport, true);
+    if (!win) {
+      message.addField('Time Survived', timeSurvived, true);
+    }
 
-    message.addField('Kills', data.killReport);
-    message.addField('Killed By', data.deathReport);
+    message.addField('Distance Travelled', distanceReport, true);
 
-    message.addField('Damage', this.codeBlock(data.damage), true);
-    message.addField('Assists', this.codeBlock(data.stats.assists), true);
-    message.addField('Shots Fired', this.codeBlock(data.shotsFiredCount), true);
+    if (deathReport) {
+      message.addField('Killed By', deathReport, true);
+    }
 
-    message.addField('Times Knocked Out', this.codeBlock(data.stats.DBNOs), true);
-    message.addField('Revives', this.codeBlock(data.stats.revives), true);
-    message.addField('Heals/Boosts', this.codeBlock(`${data.stats.heals}/${data.stats.boosts}`), true);
+    if (killReport) {
+      message.addField('Kills', killReport);
+    }
+
+    if (damage) {
+      message.addField('Damage', this.codeBlock(damage), true);
+    }
+
+    if (assists) {
+      message.addField('Assists', this.codeBlock(assists), true);
+    }
+
+    if (shotsCount) {
+      message.addField('Shots Fired', this.codeBlock(shotsCount), true);
+    }
+
+    if (DBNOs) {
+      message.addField('Times Knocked Out', this.codeBlock(DBNOs), true);
+    }
+
+    if (revives) {
+      message.addField('Revives', this.codeBlock(revives), true);
+    }
+
+    if (heals || boosts) {
+      message.addField('Heals/Boosts', this.codeBlock(`${heals}/${boosts}`), true);
+    }
 
     return message;
   }
