@@ -40,9 +40,11 @@ export class PubgDataReader {
         return dict;
       }, {});
 
-    const allStats = participants
-      .filter(({ attributes }) => playerNames.includes(attributes.stats.name))
-      .map(({ attributes }) => {
+    const watchedParticipants = participants
+      .filter(({ attributes }) => playerNames.includes(attributes.stats.name));
+
+    this.log.debug(`Found ${watchedParticipants.length} watched participants in this match.`);
+    const allStats = watchedParticipants.map(({ attributes }) => {
         const stats = attributes.stats;
         const name = attributes.stats.name;
         const kills = killEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
