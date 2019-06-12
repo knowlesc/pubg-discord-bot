@@ -38,18 +38,24 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
   const pubgMonitor = new PubgMonitor(pubgApiClient, pubgDataReader, playerNames, pollTimeMs);
   const imageBuilder = new ImageBuilder();
 
-  pubgMonitor.subscribe((stats) => {
-    stats.forEach(async (s) => {
+  pubgMonitor.subscribe(async (stats) => {
+    log.info(`Creating ${stats.length} stats messages.`);
+    for (const s of stats) {
       try {
         const message = MessageBuilder.buildMatchMessage(s);
+        log.debug(`Message for ${s.name} built`);
+
         const image = await imageBuilder.draw(s);
-        if (image) MessageBuilder.attachImage(message, image);
+        if (image) {
+          log.debug(`Attaching image to message for ${s.name}`);
+          MessageBuilder.attachImage(message, image);
+        }
         discordBot.postMessage(message, discordChannel);
       } catch (e) {
         log.error(`Unable to create and post message for ${s ? s.name : 'Unknown player'}.`);
         log.error(e);
       }
-    });
+    }
   });
 
   discordBot.onMessage(async (content, channelId) => {

@@ -64,7 +64,7 @@ export class PlayerMatchStats {
 
     if (details.length === 1) return details[0];
 
-    return `${total}m (${details.join(',')})`;
+    return `${total}m (${details.join(' ')})`;
   }
 
   private formatKillEvent(kill: IPlayerKill, death?: boolean) {

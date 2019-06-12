@@ -10,7 +10,7 @@ export class PubgDataReader {
 
   constructor(
     private pubgClient: PubgApiClient) {
-    this.log = new Logger('PubgMonitor');
+    this.log = new Logger('PubgDataReader');
   }
 
   async getPlayerMatchStats(id: string, ...playerNames: string[]) {
@@ -28,6 +28,7 @@ export class PubgDataReader {
     }
 
     const telemetryEvents = await this.pubgClient.getTelemetry(asset.attributes.URL);
+    this.log.debug(`Found ${telemetryEvents.length} telemetry events.`);
 
     const startTime = performance.now();
     const killEvents = telemetryEvents.filter(TelemetryEvent.is.PlayerKill);
