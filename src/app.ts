@@ -55,7 +55,7 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
   discordBot.onMessage(async (content, channelId) => {
     const splitContent = content.split(' ');
     if (splitContent.length === 2
-      && splitContent[0] === 'lastMatch') {
+      && splitContent[0].toLowerCase() === 'lastmatch') {
       const player = splitContent[1];
       const lastMatchId = pubgMonitor.getLastMatchId(player);
       if (!lastMatchId) {
