@@ -39,20 +39,18 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
   const imageBuilder = new ImageBuilder();
 
   pubgMonitor.subscribe(async (stats) => {
-    log.info(`Creating ${stats.length} stats messages.`);
     for (const s of stats) {
+      const player = s ? s.name : 'Unknown player';
       try {
+        log.info(`Building message for ${player}`);
         const message = MessageBuilder.buildMatchMessage(s);
-        log.debug(`Message for ${s.name} built`);
-
         const image = await imageBuilder.draw(s);
         if (image) {
-          log.debug(`Attaching image to message for ${s.name}`);
           MessageBuilder.attachImage(message, image);
         }
         discordBot.postMessage(message, discordChannel);
       } catch (e) {
-        log.error(`Unable to create and post message for ${s ? s.name : 'Unknown player'}.`);
+        log.error(`Unable to create and post message for ${player}.`);
         log.error(e);
       }
     }

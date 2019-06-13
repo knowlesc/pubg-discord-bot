@@ -54,7 +54,7 @@ export class PubgMonitor {
       const latestMatches = await this.getLatestMatches();
       const newPlayerMatches = this.getNewPlayerMatches(latestMatches);
       Object.entries(newPlayerMatches)
-        .forEach(async ([matchId, players]) => this.handleNewMatch(matchId, players));
+        .forEach(async ([matchId, players]) => this.handleNewMatch(matchId, Array.from(players)));
     } catch (e) {
       if (e instanceof RequestError && e.status === 429) {
         this.log.info(`Rate limit detected, backing off for ${PubgMonitor.backOffTimeSeconds} seconds`);
@@ -72,10 +72,7 @@ export class PubgMonitor {
     return players.reduce((lastMatches: IDictionary, data) => {
       const name = data.getValue<string>('attributes.name');
       const lastMatchId = data.getValue<string>('relationships.matches.data[0].id');
-
-      this.log.debug(`Last match for player ${name} = ${lastMatchId}`);
       lastMatches[name] = lastMatchId;
-
       return lastMatches;
     }, {});
   }
@@ -91,11 +88,11 @@ export class PubgMonitor {
         }, {} as { [k: string]: Set<string> });
   }
 
-  private async handleNewMatch(matchId: string, players: Set<string>) {
-      this.log.info(`New match found: ${matchId}`);
+  private async handleNewMatch(matchId: string, players: string[]) {
+      this.log.info(`New match found for players: ${players.join(',')}`);
 
       try {
-        const stats = await this.pubgDataReader.getPlayerMatchStats(matchId);
+        const stats = await this.pubgDataReader.getPlayerMatchStats(matchId, ...players);
         this.listeners.forEach((fn) => fn(stats));
         players.forEach((player) => this.lastMatches[player] = matchId);
       } catch (e) {
