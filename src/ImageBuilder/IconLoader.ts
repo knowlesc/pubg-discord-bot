@@ -7,7 +7,7 @@ export class IconLoader {
   playerKill?: Image;
   parachute?: Image;
 
-  async loadIcons() {
+  async load() {
     const playerKill = await this.getIconSvg('times');
     const playerDeath = await this.getIconSvg('skull-crossbones');
     const parachute = await this.getIconSvg('shoe-prints');
@@ -18,7 +18,7 @@ export class IconLoader {
 
   private async getIconImage(svgData: string, color: string) {
     svgData = svgData.replace(`<path d`, `<path fill="${color}" d`);
-    return await loadImage(new Buffer(svgData));
+    return await loadImage(Buffer.from(svgData));
   }
 
   private async getIconSvg(iconName: string) {

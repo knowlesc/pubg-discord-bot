@@ -38,6 +38,8 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
   const pubgMonitor = new PubgMonitor(pubgApiClient, pubgDataReader, playerNames, pollTimeMs);
   const imageBuilder = new ImageBuilder();
 
+  await imageBuilder.loadBaseImages();
+
   pubgMonitor.subscribe(async (stats) => {
     for (const s of stats) {
       const player = s ? s.name : 'Unknown player';

@@ -1,3 +1,4 @@
+import { MapLoader } from './MapLoader';
 import { performance } from 'perf_hooks';
 import { Logger } from './../Common/Logger';
 import { PlayerMatchStats } from './../PubgMonitor/Types/PubgApi/PlayerMatchStats';
@@ -8,6 +9,7 @@ import { IconLoader } from './IconLoader';
 export class ImageBuilder {
   private log: Logger;
   private icons: IconLoader;
+  private maps: MapLoader;
   private defaultStyles: {
     strokeStyle: string | CanvasGradient | CanvasPattern;
     lineWidth: number;
@@ -18,25 +20,30 @@ export class ImageBuilder {
 
   constructor() {
     this.icons = new IconLoader();
+    this.maps = new MapLoader();
     this.log = new Logger('ImageBuilder');
   }
 
-  async draw(stats: PlayerMatchStats) {
+  async loadBaseImages() {
+    this.log.info('Loading base images');
     const startTime = performance.now();
+    await this.icons.load();
+    await this.maps.load();
+    const elapsedTime = (performance.now() - startTime).toFixed(1);
+    this.log.info(`Loaded base images in ${elapsedTime}ms`)
+  }
+
+  async draw(stats: PlayerMatchStats) {
     let coordinates = stats.coordinates;
+    if (!coordinates || !coordinates.length) return null;
+
+    const startTime = performance.now();
     const mapName = stats.map;
     const kills = stats.kills;
     const death = stats.death;
-
-    if (!coordinates || !coordinates.length) {
-      return null;
-    }
-
-    const map = new PubgMapImage(mapName);
-    await map.load();
-    await this.icons.loadIcons();
-
+    const map = new PubgMapImage(mapName, this.maps);
     coordinates = this.convertCoords(map, coordinates);
+
     const canvas = createCanvas(map.width, map.height);
     const ctx = canvas.getContext('2d');
     this.setDefaultStyles(ctx);
