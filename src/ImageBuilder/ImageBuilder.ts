@@ -12,17 +12,30 @@ interface ILocationAndStuff extends ILocation {
   vehicleType?: string;
 }
 
+interface LineStyle {
+  dash?: number;
+  color: string;
+  width: number;
+}
+
 export class ImageBuilder {
   private log: Logger;
   private icons: IconLoader;
   private maps: MapLoader;
-  private defaultStyles: {
-    strokeStyle: string | CanvasGradient | CanvasPattern;
-    lineWidth: number;
-    lineCap: CanvasLineCap;
-    shadowBlur: number;
-    shadowColor: string;
-    lineDash: number[]
+  private readonly lineStyles: {[k: string]: LineStyle } = {
+    plane: {
+      color: 'rgba(255, 255, 255, 0.7)',
+      width: 4
+    },
+    parachute: {
+      color: 'rgba(0, 255, 255, 0.9)',
+      width: 3,
+      dash: 3
+    },
+    player: {
+      color: 'rgba(255, 0, 0, 0.9)',
+      width: 2.5
+    }
   };
 
   constructor() {
@@ -63,10 +76,7 @@ export class ImageBuilder {
 
     const canvas = createCanvas(map.width, map.height);
     const ctx = canvas.getContext('2d');
-    this.setDefaultStyles(ctx);
     ctx.drawImage(map.image, 0, 0);
-
-    this.drawPlanePath(ctx, planeCoordinates);
 
     if (stats.planeLeave && playerCoordinates[0]) {
       this.drawParachutePath(ctx, [
@@ -77,13 +87,10 @@ export class ImageBuilder {
     }
 
     this.drawPlayerPath(ctx, playerCoordinates);
+    this.drawPlanePath(ctx, planeCoordinates, map.width, map.height);
 
     if (stats.landing) {
-      this.drawIcon(ctx, this.convertCoord(map, stats.landing.character.location), this.icons.land, 16);
-    }
-
-    if (stats.planeLeave) {
-      this.drawIcon(ctx, this.convertCoord(map, stats.planeLeave.character.location), this.icons.parachute, 24);
+      this.drawIcon(ctx, this.convertCoord(map, stats.landing.character.location), this.icons.land, 18);
     }
 
     kills.forEach((k) => {
@@ -103,14 +110,7 @@ export class ImageBuilder {
     return canvas.toBuffer();
   }
 
-  drawParachutePath(ctx: CanvasRenderingContext2D, coordinates: ILocation[]) {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'butt';
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = 'black';
-    ctx.setLineDash([2.5]);
-
+  private drawParachutePath(ctx: CanvasRenderingContext2D, coordinates: ILocation[]) {
     ctx.beginPath();
 
     coordinates.forEach(({ x, y }, i) => {
@@ -123,43 +123,46 @@ export class ImageBuilder {
 
     ctx.lineTo(coordinates[coordinates.length - 1].x, coordinates[coordinates.length - 1].y);
 
-    ctx.stroke();
-
-    this.resetStyles(ctx);
+    this.drawPath(ctx, this.lineStyles.parachute);
   }
 
-  private drawPlanePath(ctx: CanvasRenderingContext2D, coordinates: ILocation[]) {
-    ctx.strokeStyle = 'rgba(200, 200, 200, 0.7)';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'butt';
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = 'black';
+  private drawPlanePath(ctx: CanvasRenderingContext2D, coordinates: ILocation[], maxX: number, maxY: number) {
+    if (coordinates.length < 2) {
+      this.log.info('Not enough coordinates to determine plane path.');
+      return;
+    }
+
+    const c0 = coordinates[0];
+    const c1 = coordinates[1];
+
+    const dx = (c1.x - c0.x);
+    const dy = (c1.y - c0.y);
+    const slope = dy / dx;
+
+    const yMinIntercept = c0.y - slope * c0.x;
+    const yMaxIntercept = slope * maxX + yMinIntercept;
+    const xMinIntercept = - (yMinIntercept / slope);
+    const xMaxIntercept = (maxY - yMinIntercept) / slope;
+
+    const nums: Array<[number, number]> = [];
+    if (yMinIntercept >= 0 && yMinIntercept <= maxY) nums.push([0, yMinIntercept]);
+    if (yMaxIntercept >= 0 && yMaxIntercept <= maxY) nums.push([maxX, yMaxIntercept]);
+    if (xMinIntercept >= 0 && xMinIntercept <= maxX) nums.push([xMinIntercept, 0]);
+    if (xMaxIntercept >= 0 && xMaxIntercept <= maxX) nums.push([xMaxIntercept, maxY]);
+
+    if (nums.length !== 2) {
+      this.log.error(`Invalid plane coordinates.`);
+      return;
+    }
 
     ctx.beginPath();
+    ctx.moveTo(...nums[0]);
+    ctx.lineTo(...nums[1]);
 
-    coordinates.forEach(({ x, y }, i) => {
-      if (i === 0) ctx.moveTo(x, y);
-      if (i === coordinates.length - 1) return;
-      ctx.lineTo(x, y);
-    });
-
-    const lastCoord = coordinates[coordinates.length - 1];
-    const yDiff = (lastCoord.y - coordinates[0].y);
-    const xDiff = (lastCoord.x - coordinates[0].x);
-    ctx.lineTo(lastCoord.x + xDiff, lastCoord.y + yDiff);
-
-    ctx.stroke();
-
-    this.resetStyles(ctx);
+    this.drawPath(ctx, this.lineStyles.plane);
   }
 
   private drawPlayerPath(ctx: CanvasRenderingContext2D, coordinates: ILocation[]) {
-    ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'butt';
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = 'black';
-
     ctx.beginPath();
 
     coordinates.forEach(({ x, y }, i) => {
@@ -170,42 +173,29 @@ export class ImageBuilder {
       ctx.quadraticCurveTo(x, y, xc, yc);
     });
 
+    this.drawPath(ctx, this.lineStyles.player);
+  }
+
+  private drawPath(ctx: CanvasRenderingContext2D, style: LineStyle) {
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.lineWidth = style.width + 3;
     ctx.stroke();
 
-    this.resetStyles(ctx);
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = 2.5;
+    if (style.dash) ctx.setLineDash([style.dash]);
+    ctx.stroke();
+    if (style.dash) ctx.setLineDash([]);
   }
 
   private drawIcon(
     ctx: CanvasRenderingContext2D, location: ILocation, icon: Image, size: number) {
-    ctx.shadowBlur = 3;
-    ctx.shadowColor = 'black';
     const width = size;
     const height = size * icon.height / icon.width;
     const x = Math.max(0, location.x - Math.round(width / 2));
     const y = Math.max(0, location.y - Math.round(height / 2));
 
     ctx.drawImage(icon, x, y, width, height );
-    this.resetStyles(ctx);
-  }
-
-  private setDefaultStyles(ctx: CanvasRenderingContext2D) {
-    this.defaultStyles = {
-      strokeStyle: ctx.strokeStyle,
-      lineWidth: ctx.lineWidth,
-      lineCap: ctx.lineCap,
-      shadowBlur: ctx.shadowBlur,
-      shadowColor: ctx.shadowColor,
-      lineDash: []
-    };
-  }
-
-  private resetStyles(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = this.defaultStyles.strokeStyle;
-    ctx.lineWidth = this.defaultStyles.lineWidth;
-    ctx.lineCap = this.defaultStyles.lineCap;
-    ctx.shadowBlur = this.defaultStyles.shadowBlur;
-    ctx.shadowColor = this.defaultStyles.shadowColor;
-    ctx.setLineDash(this.defaultStyles.lineDash);
   }
 
   private convertCoord(map: PubgMapImage, coordinate: ILocationAndStuff) {

@@ -23,7 +23,7 @@ export class IconLoader {
   }
 
   private async getIconImage(svgData: string, color: string) {
-    svgData = svgData.replace(`<path d`, `<path fill="${color}" d`);
+    svgData = svgData.replace(`<path d`, `<path fill="${color}" stroke="#000000" stroke-width="20px" d`);
     return await loadImage(Buffer.from(svgData));
   }
 
