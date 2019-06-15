@@ -31,31 +31,69 @@ export class PubgDataReader {
     this.log.debug(`Found ${telemetryEvents.length} telemetry events.`);
 
     const startTime = performance.now();
-    const killEvents = telemetryEvents.filter(TelemetryEvent.is.PlayerKill);
-    const attackEvents = telemetryEvents.filter(TelemetryEvent.is.PlayerAttack);
-    const end = telemetryEvents.find(TelemetryEvent.is.MatchEnd);
-    const placements = end.characters
-      .reduce((dict: IDictionary, c) => {
-        dict[c.name] = c.ranking.toString();
-        return dict;
-      }, {});
+    const killEvents: { [player: string]: IPlayerKill[] } = {};
+    const deathEvents: { [player: string]: IPlayerKill } = {};
+    const attackEvents: { [player: string]: IPlayerAttack[] } = {};
+    const movements: { [player: string]: IPlayerPosition[] } = {};
+    const planeLeaves: { [player: string]: IVehicleLeave } = {};
+    const landings: { [player: string]: IParachuteLanding } = {};
+    let placements: IDictionary;
 
-    const allStats = participants
-      .filter(({ attributes }) => playerNames.includes(attributes.stats.name))
-      .map(({ attributes }) => {
-        const stats = attributes.stats;
-        const name = attributes.stats.name;
-        const kills = killEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
-        const killedBy = killEvents.find((e) => TelemetryEvent.happenedTo(e, name));
-        const attacks = attackEvents.filter((e) => TelemetryEvent.isCausedBy(e, name));
-        const movements = telemetryEvents
-          .filter((e) => TelemetryEvent.is.PlayerPosition(e)
-            && TelemetryEvent.isCausedBy(e, name)
-            && e.common.isGame >= 1)
-          .map((e: IPlayerPosition) => e.character.location);
+    const includedParticipants = participants
+      .filter((p) => playerNames.includes(p.attributes.stats.name));
 
-        return new PlayerMatchStats(name, map, gameMode, stats, kills, killedBy, attacks, placements, movements);
-      });
+    includedParticipants.forEach((p) => {
+      killEvents[p.attributes.stats.name] = [];
+      attackEvents[p.attributes.stats.name] = [];
+      movements[p.attributes.stats.name] = [];
+    });
+
+    telemetryEvents.forEach((event: ITelemetryEvent) => {
+      if (event._T === 'LogPlayerPosition'
+        && movements[(event as IPlayerPosition).character.name]) {
+        movements[(event as IPlayerPosition).character.name]
+          .push(event as IPlayerPosition);
+      } else if (event._T === 'LogPlayerAttack'
+        && attackEvents[(event as IPlayerAttack).attacker.name]) {
+        attackEvents[(event as IPlayerAttack).attacker.name]
+          .push(event as IPlayerAttack);
+      } else if (event._T === 'LogPlayerKill') {
+        if (killEvents[(event as IPlayerKill).killer.name]) {
+          killEvents[(event as IPlayerKill).killer.name]
+            .push(event as IPlayerKill);
+        }
+        if (killEvents[(event as IPlayerKill).victim.name]) {
+          deathEvents[(event as IPlayerKill).victim.name] = event as IPlayerKill;
+        }
+      } else if (event._T === 'LogMatchEnd') {
+        placements = (event as IMatchEnd).characters
+          .reduce((dict: IDictionary, c: any) => {
+            dict[c.name] = c.ranking.toString();
+            return dict;
+          }, {});
+      } else if (event._T === 'LogParachuteLanding') {
+        landings[(event as IParachuteLanding).character.name] = event as IParachuteLanding;
+      } else if (event._T === 'LogVehicleLeave'
+        && (event as IVehicleLeave).vehicle.vehicleType === 'TransportAircraft') {
+        planeLeaves[(event as IVehicleLeave).character.name] = event as IVehicleLeave;
+      }
+    });
+
+    const allStats = includedParticipants.map(({ attributes }) => {
+      const name = attributes.stats.name;
+      return new PlayerMatchStats(
+        name,
+        map,
+        gameMode,
+        attributes.stats,
+        killEvents[name],
+        deathEvents[name],
+        attackEvents[name],
+        placements,
+        movements[name],
+        landings[name],
+        planeLeaves[name]);
+    });
 
     const telemetryProcessingTime = (performance.now() - startTime).toFixed(1);
     this.log.info(`Processed telemetry in ${telemetryProcessingTime}ms`);

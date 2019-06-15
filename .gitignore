@@ -2,6 +2,7 @@ build
 example_api_data
 node_modules
 src/ignore
+ignore.ts
 
 *.log
 .env

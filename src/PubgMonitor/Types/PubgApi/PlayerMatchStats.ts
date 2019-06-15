@@ -12,7 +12,9 @@ export class PlayerMatchStats {
     readonly death: IPlayerKill,
     readonly shotsFired: IPlayerAttack[],
     readonly placements: IDictionary,
-    readonly coordinates: ILocation[]) {
+    readonly position: IPlayerPosition[],
+    readonly landing: IParachuteLanding,
+    readonly planeLeave: IVehicleLeave) {
   }
 
   get damage() {

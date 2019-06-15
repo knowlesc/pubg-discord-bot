@@ -5,14 +5,20 @@ import { loadImage, Image } from 'canvas';
 export class IconLoader {
   playerDeath?: Image;
   playerKill?: Image;
+  land?: Image;
+  plane?: Image;
   parachute?: Image;
 
   async load() {
     const playerKill = await this.getIconSvg('times');
     const playerDeath = await this.getIconSvg('skull-crossbones');
-    const parachute = await this.getIconSvg('shoe-prints');
+    const land = await this.getIconSvg('shoe-prints');
+    const parachute = await this.getIconSvg('parachute-box');
+    const plane = await this.getIconSvg('plane');
     this.playerKill = await this.getIconImage(playerKill, 'yellow');
     this.playerDeath = await this.getIconImage(playerDeath, 'yellow');
+    this.land = await this.getIconImage(land, 'yellow');
+    this.plane = await this.getIconImage(plane, 'yellow');
     this.parachute = await this.getIconImage(parachute, 'yellow');
   }
 
