@@ -1,3 +1,4 @@
+import { DamageCauserName } from './../PubgMonitor/Types/PubgApi/Dictionaries/DamageCauserName';
 import { MapLoader } from './MapLoader';
 import { performance } from 'perf_hooks';
 import { Logger } from './../Common/Logger';
@@ -90,7 +91,10 @@ export class ImageBuilder {
     });
 
     if (death) {
-      this.drawIcon(ctx, this.convertCoord(map, death.victim.location), this.icons.playerDeath, 16);
+      const location = DamageCauserName[death.damageCauserName] !== 'Bluezone' ?
+        this.convertCoord(map, death.victim.location) :
+        playerCoordinates[playerCoordinates.length - 1];
+      this.drawIcon(ctx, location, this.icons.playerDeath, 16);
     }
 
     const imageProcessingTime = (performance.now() - startTime).toFixed(1);
