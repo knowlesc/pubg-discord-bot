@@ -5,14 +5,14 @@ export class MessageBuilder {
   static buildMatchMessage(data: PlayerMatchStats) {
     const message = new RichEmbed();
     const { map, gameMode, name, shotsCount, damage, killReport, deathReport, distanceReport, timeSurvived } = data;
-    const { winPlace, heals, boosts, revives, DBNOs, assists } = data.stats;
+    const { heals, boosts, revives, DBNOs, assists } = data.stats;
 
-    const win = winPlace === 1;
+    const win = data.placement === 1;
     const emoji = win ? ':trophy:' : ':skull_crossbones:';
 
     message.setColor(win ? [216, 173, 17] : [179, 39, 79]);
     message.setTitle(`${emoji} Match Stats for ${name}`);
-    message.setDescription(`Placed #${winPlace} on ${map} (${gameMode})`);
+    message.setDescription(`Placed #${data.placement} on ${map} (${gameMode})`);
 
     if (!win) {
       message.addField('Time Survived', timeSurvived, true);

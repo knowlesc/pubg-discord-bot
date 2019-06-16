@@ -11,7 +11,7 @@ export class PlayerMatchStats {
     readonly kills: IPlayerKill[],
     readonly death: IPlayerKill,
     readonly shotsFired: IPlayerAttack[],
-    readonly placements: IDictionary,
+    readonly placements: IDictionary<number>,
     readonly position: IPlayerPosition[],
     readonly landing: IParachuteLanding,
     readonly planeLeave: IVehicleLeave) {
@@ -19,6 +19,10 @@ export class PlayerMatchStats {
 
   get damage() {
     return Math.round(Number(this.stats.damageDealt));
+  }
+
+  get placement() {
+    return this.placements[this.name];
   }
 
   get timeSurvived() {

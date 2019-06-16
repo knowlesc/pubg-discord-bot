@@ -37,7 +37,15 @@ export class PubgDataReader {
     const movements: { [player: string]: IPlayerPosition[] } = {};
     const planeLeaves: { [player: string]: IVehicleLeave } = {};
     const landings: { [player: string]: IParachuteLanding } = {};
-    let placements: IDictionary;
+    const placements: IDictionary<number> = {};
+
+    included.filter((item) => item.type === 'roster')
+      .forEach((roster) => {
+        roster.relationships.participants.data.forEach((rosterParticipant: any) => {
+          const participant = participants.find((p) => p.id === rosterParticipant.id);
+          if (participant) placements[participant.attributes.stats.name] = roster.attributes.stats.rank;
+        });
+      });
 
     const includedParticipants = participants
       .filter((p) => playerNames.includes(p.attributes.stats.name));
@@ -65,12 +73,6 @@ export class PubgDataReader {
         if (killEvents[(event as IPlayerKill).victim.name]) {
           deathEvents[(event as IPlayerKill).victim.name] = event as IPlayerKill;
         }
-      } else if (event._T === 'LogMatchEnd') {
-        placements = (event as IMatchEnd).characters
-          .reduce((dict: IDictionary, c: any) => {
-            dict[c.name] = c.ranking.toString();
-            return dict;
-          }, {});
       } else if (event._T === 'LogParachuteLanding') {
         landings[(event as IParachuteLanding).character.name] = event as IParachuteLanding;
       } else if (event._T === 'LogVehicleLeave'
