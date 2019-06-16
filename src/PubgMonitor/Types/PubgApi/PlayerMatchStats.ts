@@ -49,6 +49,7 @@ export class PlayerMatchStats {
   get killReport() {
     return this.kills.length ?
       this.kills
+        .filter((k) => k.victim.name !== this.name)
         .map((k) => this.formatKillEvent(k))
         .join('\n') :
       '';
@@ -75,12 +76,11 @@ export class PlayerMatchStats {
     const placement = this.placements[killer] || '?';
 
     let reason = DamageReason[kill.damageReason];
-    reason = reason ? ` - ${reason}` : '';
-
+    reason = reason ? `/${reason}` : ''
     let weapon = DamageCauserName[kill.damageCauserName] || 'Unknown';
     if (weapon === 'Bluezone') return weapon;
     weapon = weapon === 'Player' ? 'Down and Out' : weapon;
 
-    return `${killer} (#${placement}) from ${distance}m *(${weapon}${reason})*`;
+    return `#${placement} ${killer} *${weapon}${reason} ${distance}m*`;
   }
 }
