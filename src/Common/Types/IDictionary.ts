@@ -1,3 +1,3 @@
-interface IDictionary<T extends string | number = string> {
+interface IDictionary<T = string> {
   [key: string]: T;
 }

@@ -25,16 +25,17 @@ export class ImageBuilder {
   private readonly lineStyles: {[k: string]: LineStyle } = {
     plane: {
       color: 'rgba(255, 255, 255, 0.7)',
-      width: 4
+      width: 4,
+      dash: 6
     },
     parachute: {
       color: 'rgba(0, 255, 255, 0.9)',
-      width: 3,
+      width: 2,
       dash: 3
     },
     player: {
-      color: 'rgba(255, 0, 0, 0.9)',
-      width: 2.5
+      color: 'rgba(255, 0, 0, 1)',
+      width: 1.5
     }
   };
 
@@ -60,7 +61,15 @@ export class ImageBuilder {
     const mapName = stats.map;
     const kills = stats.kills;
     const death = stats.death;
-    const map = new PubgMapImage(mapName, this.maps);
+
+    let map: PubgMapImage;
+
+    try {
+      map = new PubgMapImage(mapName, this.maps);
+    } catch (e) {
+      this.log.error(e);
+      return null;
+    }
 
     const coordinates: ILocationAndStuff[] = this.convertCoords(map, stats.position
       .filter((p) => p.common.isGame > 0)
@@ -78,6 +87,16 @@ export class ImageBuilder {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(map.image, 0, 0);
 
+    Object.entries(stats.blueZones).forEach(([phase, bluezone]) => {
+      const location = this.convertCoord(map, bluezone.position);
+      const radius = Math.round(bluezone.radius * map.pixelRatio);
+      const div = 3; // Higher means initial blue is darker
+      const exp = 1.5; // Higher means subsequent blues are lighter
+      const inverse = (1 / Number(phase));
+      const opacity = Math.pow(inverse, exp) / div;
+      this.drawCircleInverse(ctx, location, opacity, 'rgba(255, 255, 255, 0.7)', 1.5, radius);
+    });
+
     if (stats.planeLeave && playerCoordinates[0]) {
       this.drawParachutePath(ctx, [
         this.convertCoord(map, stats.planeLeave.character.location),
@@ -89,19 +108,31 @@ export class ImageBuilder {
     this.drawPlayerPath(ctx, playerCoordinates);
     this.drawPlanePath(ctx, planeCoordinates, map.width, map.height);
 
-    if (stats.landing) {
-      this.drawIcon(ctx, this.convertCoord(map, stats.landing.character.location), this.icons.land, 18);
-    }
+    Object.entries(stats.landings)
+      .forEach(([player, landing]) => {
+        if (player === stats.name) return;
+        const landingCoord = this.convertCoord(map, landing.character.location);
+        this.drawCircle(ctx, landingCoord, '#efeb0b', '#000000', 1.5, 2.5);
+      });
+
+    const playerLanding = stats.landings[stats.name];
+    const playerLandingCoord = this.convertCoord(map, playerLanding.character.location);
+    this.drawCircle(ctx, playerLandingCoord, '#5effe9', '#000000', 2, 3);
 
     kills.forEach((k) => {
-      this.drawIcon(ctx, this.convertCoord(map, k.victim.location), this.icons.playerKill, 7);
+      const killCoord = this.convertCoord(map, k.victim.location);
+      this.drawX(ctx, killCoord, '#efeb0b', '#000000', 2, 2, 5);
     });
 
     if (death) {
-      const location = DamageCauserName[death.damageCauserName] !== 'Bluezone' ?
-        this.convertCoord(map, death.victim.location) :
-        playerCoordinates[playerCoordinates.length - 1];
-      this.drawIcon(ctx, location, this.icons.playerDeath, 16);
+      const causedBy = DamageCauserName[death.damageCauserName];
+      if (causedBy === 'Bluezone' || death.killer.name === stats.name) {
+        const deathCoord = this.convertCoord(map, playerCoordinates[playerCoordinates.length - 1]);
+        this.drawX(ctx, deathCoord, 'red', '#000000', 2, 2, 4);
+      } else {
+        const deathCoord = this.convertCoord(map, death.victim.location);
+        this.drawX(ctx, deathCoord, 'red', '#000000', 2, 3, 5);
+      }
     }
 
     const imageProcessingTime = (performance.now() - startTime).toFixed(1);
@@ -182,7 +213,7 @@ export class ImageBuilder {
     ctx.stroke();
 
     ctx.strokeStyle = style.color;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = style.width;
     if (style.dash) ctx.setLineDash([style.dash]);
     ctx.stroke();
     if (style.dash) ctx.setLineDash([]);
@@ -196,6 +227,80 @@ export class ImageBuilder {
     const y = Math.max(0, location.y - Math.round(height / 2));
 
     ctx.drawImage(icon, x, y, width, height );
+  }
+
+  private drawCircle(ctx: CanvasRenderingContext2D, location: ILocation, fill: string, border: string, borderWidth = 2, radius = 2) {
+    ctx.beginPath();
+    ctx.arc(location.x, location.y, radius, 0, 2 * Math.PI);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    ctx.lineWidth = borderWidth;
+    ctx.strokeStyle = border;
+    ctx.stroke();
+  }
+
+  private drawCircleInverse(ctx: CanvasRenderingContext2D, location: ILocation, transparency: number, border: string, borderWidth = 2, radius = 2) {
+    ctx.fillStyle = `rgba(52, 106, 193, ${transparency})`;
+    ctx.beginPath();
+    ctx.arc(location.x, location.y, radius, 0, 2 * Math.PI);
+    ctx.rect(1000, 0, -1000, 1000);
+    ctx.fill();
+    ctx.lineWidth = borderWidth;
+    ctx.strokeStyle = border;
+    ctx.stroke();
+  }
+
+  private drawX(ctx: CanvasRenderingContext2D, location: ILocation, fill: string, border: string, borderWidth = 2, length = 3, thickness = 2) {
+    let x = location.x;
+    let y = location.y;
+    ctx.beginPath();
+    x -= length;
+    y -= length;
+    ctx.moveTo(x, y);
+    x += thickness / 2;
+    y -= thickness / 2;
+    ctx.lineTo(x, y);
+    x += length;
+    y += length;
+    ctx.lineTo(x, y);
+    x += length;
+    y -= length;
+    ctx.lineTo(x, y);
+    x += thickness / 2;
+    y += thickness / 2;
+    ctx.lineTo(x, y);
+    x -= length;
+    y += length;
+    ctx.lineTo(x, y);
+    x += length;
+    y += length;
+    ctx.lineTo(x, y);
+    x -= thickness / 2;
+    y += thickness / 2;
+    ctx.lineTo(x, y);
+    x -= length;
+    y -= length;
+    ctx.lineTo(x, y);
+    x -= length;
+    y += length;
+    ctx.lineTo(x, y);
+    x -= thickness / 2;
+    y -= thickness / 2;
+    ctx.lineTo(x, y);
+    x += length;
+    y -= length;
+    ctx.lineTo(x, y);
+    x -= length;
+    y -= length;
+    ctx.lineTo(x, y);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = borderWidth;
+    ctx.strokeStyle = border;
+    ctx.stroke();
+    ctx.closePath();
   }
 
   private convertCoord(map: PubgMapImage, coordinate: ILocationAndStuff) {

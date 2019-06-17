@@ -2,7 +2,6 @@ import { DamageReason } from './Dictionaries/DamageReason';
 import { DamageCauserName } from './Dictionaries/DamageCauserName';
 
 export class PlayerMatchStats {
-
   constructor(
     readonly name: string,
     readonly map: string,
@@ -13,8 +12,9 @@ export class PlayerMatchStats {
     readonly shotsFired: IPlayerAttack[],
     readonly placements: IDictionary<number>,
     readonly position: IPlayerPosition[],
-    readonly landing: IParachuteLanding,
-    readonly planeLeave: IVehicleLeave) {
+    readonly landings: IDictionary<IParachuteLanding>,
+    readonly planeLeave: IVehicleLeave,
+    readonly blueZones: IDictionary<{ position: ILocation, radius: number }>) {
   }
 
   get damage() {

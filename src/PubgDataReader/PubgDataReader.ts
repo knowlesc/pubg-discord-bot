@@ -30,6 +30,17 @@ export class PubgDataReader {
     const telemetryEvents = await this.pubgClient.getTelemetry(asset.attributes.URL);
     this.log.debug(`Found ${telemetryEvents.length} telemetry events.`);
 
+    const blueZones: IDictionary<{ position: ILocation, radius: number }> = {};
+    telemetryEvents
+      .filter((e) => e._T === 'LogGameStatePeriodic')
+      .forEach((e: IGameStatePeriodic) => {
+        if (e.common.isGame % 1 !== 0 || blueZones[e.common.isGame]) return;
+        blueZones[e.common.isGame] = {
+          position: e.gameState.poisonGasWarningPosition,
+          radius: e.gameState.poisonGasWarningRadius
+        };
+      });
+
     const startTime = performance.now();
     const killEvents: { [player: string]: IPlayerKill[] } = {};
     const deathEvents: { [player: string]: IPlayerKill } = {};
@@ -93,8 +104,9 @@ export class PubgDataReader {
         attackEvents[name],
         placements,
         movements[name],
-        landings[name],
-        planeLeaves[name]);
+        landings,
+        planeLeaves[name],
+        blueZones);
     });
 
     const telemetryProcessingTime = (performance.now() - startTime).toFixed(1);

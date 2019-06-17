@@ -1,6 +1,5 @@
 import { MapLoader } from './MapLoader';
-import * as path from 'path';
-import { loadImage, Image } from 'canvas';
+import { Image } from 'canvas';
 
 type PubgMap = 'Sanhok' | 'Erangel' | 'Vikendi' | 'Miramar';
 
