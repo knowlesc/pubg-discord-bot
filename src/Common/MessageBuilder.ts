@@ -58,7 +58,7 @@ export class MessageBuilder {
     const emoji = win ? ':trophy:' : ':skull_crossbones:';
 
     message.setColor(win ? [216, 173, 17] : [179, 39, 79])
-      .setTitle(`${emoji} Match Stats for ${name}`)
+      .setTitle(`${emoji} Team Info`)
       .setDescription(`Placed #${placement} on ${map} (${gameMode})`)
       .attachFile({ name: 'image.png', attachment: image })
       .setImage('attachment://image.png');
