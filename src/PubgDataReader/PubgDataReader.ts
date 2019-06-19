@@ -1,8 +1,8 @@
+import { MatchStats } from '../PubgMonitor/Types/PubgApi/MatchStats';
 import { performance } from 'perf_hooks';
 import { Logger } from '../Common/Logger';
 import { PubgApiClient } from '../PubgApiClient/PubgApiClient';
 import { MapName } from '../PubgMonitor/Types/PubgApi/Dictionaries/MapName';
-import { TelemetryEvent } from '../PubgMonitor/Types/PubgApi/Telemetry/EventTypeGuards';
 import { PlayerMatchStats } from '../PubgMonitor/Types/PubgApi/PlayerMatchStats';
 
 export class PubgDataReader {
@@ -96,22 +96,26 @@ export class PubgDataReader {
       const name = attributes.stats.name;
       return new PlayerMatchStats(
         name,
-        map,
-        gameMode,
         attributes.stats,
         killEvents[name],
         deathEvents[name],
         attackEvents[name],
-        placements,
-        movements[name],
-        landings,
-        planeLeaves[name],
-        blueZones);
+        placements);
     });
+
+    const matchStats = new MatchStats(
+      map,
+      gameMode,
+      placements,
+      movements,
+      landings,
+      planeLeaves,
+      blueZones,
+      allStats);
 
     const telemetryProcessingTime = (performance.now() - startTime).toFixed(1);
     this.log.info(`Processed telemetry in ${telemetryProcessingTime}ms`);
 
-    return allStats;
+    return matchStats;
   }
 }

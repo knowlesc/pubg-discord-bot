@@ -1,3 +1,4 @@
+import { MatchStats } from './../PubgMonitor/Types/PubgApi/MatchStats';
 import { DamageCauserName } from './../PubgMonitor/Types/PubgApi/Dictionaries/DamageCauserName';
 import { MapLoader } from './MapLoader';
 import { performance } from 'perf_hooks';
@@ -12,7 +13,7 @@ interface ILocationAndStuff extends ILocation {
   vehicleType?: string;
 }
 
-interface LineStyle {
+interface ILineStyle {
   dash?: number;
   color: string;
   width: number;
@@ -22,7 +23,7 @@ export class ImageBuilder {
   private log: Logger;
   private icons: IconLoader;
   private maps: MapLoader;
-  private readonly lineStyles: {[k: string]: LineStyle } = {
+  private readonly lineStyles: {[k: string]: ILineStyle } = {
     plane: {
       color: 'rgba(255, 255, 255, 0.7)',
       width: 4,
@@ -54,13 +55,9 @@ export class ImageBuilder {
     this.log.info(`Loaded base images in ${elapsedTime}ms`)
   }
 
-  async draw(stats: PlayerMatchStats) {
-    if (!stats.position || !stats.position.length) return null;
-
+  async draw(matchStats: MatchStats) {
     const startTime = performance.now();
-    const mapName = stats.map;
-    const kills = stats.kills;
-    const death = stats.death;
+    const mapName = matchStats.map;
 
     let map: PubgMapImage;
 
@@ -71,23 +68,12 @@ export class ImageBuilder {
       return null;
     }
 
-    const coordinates: ILocationAndStuff[] = this.convertCoords(map, stats.position
-      .filter((p) => p.common.isGame > 0)
-      .map((p) => ({
-        state: p.common.isGame,
-        vehicleType: p.vehicle.vehicleType,
-        ...p.character.location
-      })));
-
-    const planeCoordinates = coordinates.filter((c) => c.vehicleType === 'TransportAircraft');
-    const parachuteCoordinates = coordinates.filter((c) => c.vehicleType !== 'TransportAircraft' && c.state < 1);
-    const playerCoordinates = coordinates.filter((c) => c.vehicleType !== 'TransportAircraft' && c.state >= 1);
-
     const canvas = createCanvas(map.width, map.height);
     const ctx = canvas.getContext('2d');
     ctx.drawImage(map.image, 0, 0);
 
-    Object.entries(stats.blueZones).forEach(([phase, bluezone]) => {
+    // Bluezones
+    Object.entries(matchStats.blueZones).forEach(([phase, bluezone]) => {
       const location = this.convertCoord(map, bluezone.position);
       const radius = Math.round(bluezone.radius * map.pixelRatio);
       const div = 3; // Higher means initial blue is darker
@@ -97,48 +83,86 @@ export class ImageBuilder {
       this.drawCircleInverse(ctx, location, opacity, 'rgba(255, 255, 255, 0.7)', 1.5, radius);
     });
 
-    if (stats.planeLeave && playerCoordinates[0]) {
+    // Player landings
+    Object.values(matchStats.landings)
+      .forEach((landing) => {
+        const landingCoord = this.convertCoord(map, landing.character.location);
+        this.drawCircle(ctx, landingCoord, '#efeb0b', '#000000', 1.5, 2.5);
+      });
+
+    // Player paths
+    matchStats.players.forEach((playerStats) => {
+      this.drawPlayerInfo(ctx, map, matchStats, playerStats);
+    });
+
+    const imageProcessingTime = (performance.now() - startTime).toFixed(1);
+    this.log.info(`Drew image in ${imageProcessingTime}ms`);
+
+    return canvas.toBuffer();
+  }
+
+  private drawPlayerInfo(
+    ctx: CanvasRenderingContext2D, map: PubgMapImage, matchStats: MatchStats, playerStats: PlayerMatchStats) {
+    const playerName = playerStats.name;
+    const positions = matchStats.positions[playerName];
+    if (!positions) {
+      this.log.error(`Unable to find movement data for ${playerName}`);
+      return;
+    }
+
+    const kills = playerStats.kills;
+    const death = playerStats.death;
+    const jump = matchStats.planeLeaves[playerName];
+    const landing = matchStats.landings[playerName];
+
+    const coordinates: ILocationAndStuff[] = this.convertCoords(map, positions
+      .filter((p) => p.common.isGame > 0)
+      .map((p) => ({
+        state: p.common.isGame,
+        vehicleType: p.vehicle.vehicleType,
+        ...p.character.location
+      })));
+
+    // TODO only do this once
+    const planeCoordinates = coordinates.filter((c) => c.vehicleType === 'TransportAircraft');
+    this.drawPlanePath(ctx, planeCoordinates, map.width, map.height);
+
+    const parachuteCoordinates = coordinates.filter((c) => c.vehicleType !== 'TransportAircraft' && c.state < 1);
+    const playerCoordinates = coordinates.filter((c) => c.vehicleType !== 'TransportAircraft' && c.state >= 1);
+
+    // Parachute path
+    if (jump && playerCoordinates[0]) {
       this.drawParachutePath(ctx, [
-        this.convertCoord(map, stats.planeLeave.character.location),
+        this.convertCoord(map, jump.character.location),
         ...parachuteCoordinates,
         playerCoordinates[0]
       ]);
     }
 
+    // Player path
     this.drawPlayerPath(ctx, playerCoordinates);
-    this.drawPlanePath(ctx, planeCoordinates, map.width, map.height);
 
-    Object.entries(stats.landings)
-      .forEach(([player, landing]) => {
-        if (player === stats.name) return;
-        const landingCoord = this.convertCoord(map, landing.character.location);
-        this.drawCircle(ctx, landingCoord, '#efeb0b', '#000000', 1.5, 2.5);
-      });
-
-    const playerLanding = stats.landings[stats.name];
-    const playerLandingCoord = this.convertCoord(map, playerLanding.character.location);
+    // Landing location
+    const playerLandingCoord = this.convertCoord(map, landing.character.location);
     this.drawCircle(ctx, playerLandingCoord, '#5effe9', '#000000', 2, 3);
 
+    // Kills
     kills.forEach((k) => {
       const killCoord = this.convertCoord(map, k.victim.location);
       this.drawX(ctx, killCoord, '#efeb0b', '#000000', 2, 2, 5);
     });
 
+    // Death
     if (death) {
       const causedBy = DamageCauserName[death.damageCauserName];
-      if (causedBy === 'Bluezone' || death.killer.name === stats.name) {
-        const deathCoord = this.convertCoord(map, playerCoordinates[playerCoordinates.length - 1]);
+      if (causedBy === 'Bluezone' || death.killer.name === playerName) {
+        const deathCoord = playerCoordinates[playerCoordinates.length - 1];
         this.drawX(ctx, deathCoord, 'red', '#000000', 2, 2, 4);
       } else {
         const deathCoord = this.convertCoord(map, death.victim.location);
         this.drawX(ctx, deathCoord, 'red', '#000000', 2, 3, 5);
       }
     }
-
-    const imageProcessingTime = (performance.now() - startTime).toFixed(1);
-    this.log.info(`Drew image in ${imageProcessingTime}ms`);
-
-    return canvas.toBuffer();
   }
 
   private drawParachutePath(ctx: CanvasRenderingContext2D, coordinates: ILocation[]) {
@@ -207,7 +231,7 @@ export class ImageBuilder {
     this.drawPath(ctx, this.lineStyles.player);
   }
 
-  private drawPath(ctx: CanvasRenderingContext2D, style: LineStyle) {
+  private drawPath(ctx: CanvasRenderingContext2D, style: ILineStyle) {
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.lineWidth = style.width + 3;
     ctx.stroke();
@@ -229,7 +253,8 @@ export class ImageBuilder {
     ctx.drawImage(icon, x, y, width, height );
   }
 
-  private drawCircle(ctx: CanvasRenderingContext2D, location: ILocation, fill: string, border: string, borderWidth = 2, radius = 2) {
+  private drawCircle(
+    ctx: CanvasRenderingContext2D, location: ILocation, fill: string, border: string, borderWidth = 2, radius = 2) {
     ctx.beginPath();
     ctx.arc(location.x, location.y, radius, 0, 2 * Math.PI);
     if (fill) {
@@ -241,7 +266,9 @@ export class ImageBuilder {
     ctx.stroke();
   }
 
-  private drawCircleInverse(ctx: CanvasRenderingContext2D, location: ILocation, transparency: number, border: string, borderWidth = 2, radius = 2) {
+  private drawCircleInverse(
+    ctx: CanvasRenderingContext2D, location: ILocation,
+    transparency: number, border: string, borderWidth = 2, radius = 2) {
     ctx.fillStyle = `rgba(52, 106, 193, ${transparency})`;
     ctx.beginPath();
     ctx.arc(location.x, location.y, radius, 0, 2 * Math.PI);
@@ -252,7 +279,9 @@ export class ImageBuilder {
     ctx.stroke();
   }
 
-  private drawX(ctx: CanvasRenderingContext2D, location: ILocation, fill: string, border: string, borderWidth = 2, length = 3, thickness = 2) {
+  private drawX(
+    ctx: CanvasRenderingContext2D, location: ILocation, fill: string,
+    border: string, borderWidth = 2, length = 3, thickness = 2) {
     let x = location.x;
     let y = location.y;
     ctx.beginPath();

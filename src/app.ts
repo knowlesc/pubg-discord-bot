@@ -41,20 +41,23 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
   await imageBuilder.loadBaseImages();
 
   pubgMonitor.subscribe(async (stats) => {
-    for (const s of stats) {
-      const player = s ? s.name : 'Unknown player';
-      try {
-        log.info(`Building message for ${player}`);
-        const message = MessageBuilder.buildMatchMessage(s);
-        const image = await imageBuilder.draw(s);
-        if (image) {
-          MessageBuilder.attachImage(message, image);
-        }
+    try {
+      log.info(`Building message for ${stats.map}/${stats.gameMode}`);
+
+      stats.players.forEach((p) => {
+        const message = MessageBuilder.buildPlayerMessage(p);
         discordBot.postMessage(message, discordChannel);
-      } catch (e) {
-        log.error(`Unable to create and post message for ${player}.`);
-        log.error(e);
+      });
+
+      const image = await imageBuilder.draw(stats);
+      if (image) {
+        const matchMessage = MessageBuilder.buildMatchMessage(
+          stats.players[0].placement, stats.map, stats.gameMode, image);
+        discordBot.postMessage(matchMessage, discordChannel);
       }
+    } catch (e) {
+      log.error(`Unable to create and post message.`);
+      log.error(e);
     }
   });
 
@@ -72,10 +75,18 @@ import { ImageBuilder } from './ImageBuilder/ImageBuilder';
       try {
         discordBot.postMessage(`Generating last match info for ${player}, one minute.`, channelId);
         const stats = await pubgDataReader.getPlayerMatchStats(lastMatchId, player);
-        const message = MessageBuilder.buildMatchMessage(stats[0]);
-        const image = await imageBuilder.draw(stats[0]);
-        if (image) MessageBuilder.attachImage(message, image);
-        discordBot.postMessage(message, channelId);
+
+        stats.players.forEach((p) => {
+          const message = MessageBuilder.buildPlayerMessage(p);
+          discordBot.postMessage(message, channelId);
+        });
+
+        const image = await imageBuilder.draw(stats);
+        if (image) {
+          const matchMessage = MessageBuilder.buildMatchMessage(
+            stats.players[0].placement, stats.map, stats.gameMode, image);
+          discordBot.postMessage(matchMessage, channelId);
+        }
       } catch (e) {
         log.error(`Unable to create and post message for ${player}.`);
         log.error(e);

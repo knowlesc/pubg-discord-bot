@@ -2,9 +2,9 @@ import { RichEmbed } from 'discord.js';
 import { PlayerMatchStats } from '../PubgMonitor/Types/PubgApi/PlayerMatchStats';
 
 export class MessageBuilder {
-  static buildMatchMessage(data: PlayerMatchStats) {
+  static buildPlayerMessage(data: PlayerMatchStats) {
     const message = new RichEmbed();
-    const { map, gameMode, name, shotsCount, damage, killReport, deathReport, distanceReport, timeSurvived } = data;
+    const { name, shotsCount, damage, killReport, deathReport, distanceReport, timeSurvived } = data;
     const { heals, boosts, revives, DBNOs, assists } = data.stats;
 
     const win = data.placement === 1;
@@ -12,11 +12,7 @@ export class MessageBuilder {
 
     message.setColor(win ? [216, 173, 17] : [179, 39, 79]);
     message.setTitle(`${emoji} Match Stats for ${name}`);
-    message.setDescription(`Placed #${data.placement} on ${map} (${gameMode})`);
-
-    if (!win) {
-      message.addField('Time Survived', timeSurvived, true);
-    }
+    message.setDescription(`Survived ${timeSurvived}`);
 
     message.addField('Distance Travelled', distanceReport, true);
 
@@ -55,10 +51,19 @@ export class MessageBuilder {
     return message;
   }
 
-  static attachImage(message: RichEmbed, imageBuffer: Buffer) {
-    return message
-      .attachFile({ name: 'image.png', attachment: imageBuffer })
+  static buildMatchMessage(placement: number, map: string, gameMode: string, image: Buffer) {
+    const message = new RichEmbed();
+
+    const win = placement === 1;
+    const emoji = win ? ':trophy:' : ':skull_crossbones:';
+
+    message.setColor(win ? [216, 173, 17] : [179, 39, 79])
+      .setTitle(`${emoji} Match Stats for ${name}`)
+      .setDescription(`Placed #${placement} on ${map} (${gameMode})`)
+      .attachFile({ name: 'image.png', attachment: image })
       .setImage('attachment://image.png');
+
+    return message;
   }
 
   private static codeBlock(message: string | number) {

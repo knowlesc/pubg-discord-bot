@@ -1,3 +1,4 @@
+import { MatchStats } from './Types/PubgApi/MatchStats';
 import { PubgDataReader } from './../PubgDataReader/PubgDataReader';
 import { PlayerMatchStats } from './Types/PubgApi/PlayerMatchStats';
 import { PubgApiClient } from '../PubgApiClient/PubgApiClient';
@@ -9,7 +10,7 @@ export class PubgMonitor {
   private log: Logger;
   private interval: NodeJS.Timeout;
   private lastMatches: IDictionary = {};
-  private listeners: Array<(stats: PlayerMatchStats[]) => void> = [];
+  private listeners: Array<(stats: MatchStats) => void> = [];
 
   constructor(
     private pubgClient: PubgApiClient,
@@ -19,7 +20,7 @@ export class PubgMonitor {
     this.log = new Logger('PubgMonitor');
   }
 
-  subscribe(listener: (stats: PlayerMatchStats[]) => void) {
+  subscribe(listener: (stats: MatchStats) => void) {
     this.listeners.push(listener);
   }
 
