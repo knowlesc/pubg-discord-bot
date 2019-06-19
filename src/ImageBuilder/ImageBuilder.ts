@@ -91,8 +91,8 @@ export class ImageBuilder {
       });
 
     // Player paths
-    matchStats.players.forEach((playerStats) => {
-      this.drawPlayerInfo(ctx, map, matchStats, playerStats);
+    matchStats.players.forEach((playerStats, i) => {
+      this.drawPlayerInfo(ctx, map, matchStats, playerStats, i === 1);
     });
 
     const imageProcessingTime = (performance.now() - startTime).toFixed(1);
@@ -102,7 +102,8 @@ export class ImageBuilder {
   }
 
   private drawPlayerInfo(
-    ctx: CanvasRenderingContext2D, map: PubgMapImage, matchStats: MatchStats, playerStats: PlayerMatchStats) {
+    ctx: CanvasRenderingContext2D, map: PubgMapImage, matchStats: MatchStats,
+    playerStats: PlayerMatchStats, drawPlanePath = false) {
     const playerName = playerStats.name;
     const positions = matchStats.positions[playerName];
     if (!positions) {
@@ -123,9 +124,10 @@ export class ImageBuilder {
         ...p.character.location
       })));
 
-    // TODO only do this once
-    const planeCoordinates = coordinates.filter((c) => c.vehicleType === 'TransportAircraft');
-    this.drawPlanePath(ctx, planeCoordinates, map.width, map.height);
+    if (drawPlanePath) {
+      const planeCoordinates = coordinates.filter((c) => c.vehicleType === 'TransportAircraft');
+      this.drawPlanePath(ctx, planeCoordinates, map.width, map.height);
+    }
 
     const parachuteCoordinates = coordinates.filter((c) => c.vehicleType !== 'TransportAircraft' && c.state < 1);
     const playerCoordinates = coordinates.filter((c) => c.vehicleType !== 'TransportAircraft' && c.state >= 1);
