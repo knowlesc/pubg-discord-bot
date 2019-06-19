@@ -159,7 +159,9 @@ export class ImageBuilder {
       const causedBy = DamageCauserName[death.damageCauserName];
       if (causedBy === 'Bluezone' || death.killer.name === playerName) {
         const deathCoord = playerCoordinates[playerCoordinates.length - 1];
-        this.drawX(ctx, deathCoord, 'red', '#000000', 2, 2, 4);
+        if (deathCoord) {
+          this.drawX(ctx, deathCoord, 'red', '#000000', 2, 2, 4);
+        }
       } else {
         const deathCoord = this.convertCoord(map, death.victim.location);
         this.drawX(ctx, deathCoord, 'red', '#000000', 2, 3, 5);
