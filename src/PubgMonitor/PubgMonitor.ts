@@ -1,6 +1,5 @@
 import { MatchStats } from './Types/PubgApi/MatchStats';
 import { PubgDataReader } from './../PubgDataReader/PubgDataReader';
-import { PlayerMatchStats } from './Types/PubgApi/PlayerMatchStats';
 import { PubgApiClient } from '../PubgApiClient/PubgApiClient';
 import { Logger } from '../Common/Logger';
 import { RequestError } from '../Common/RequestError';
@@ -79,25 +78,25 @@ export class PubgMonitor {
   }
 
   private getNewPlayerMatches(latestMatches: IDictionary) {
-      return Object.entries(latestMatches)
-        .reduce((newPlayerMatches, [player, matchId]) => {
-          if (this.lastMatches[player] !== matchId) {
-            newPlayerMatches[matchId] = newPlayerMatches[matchId] || new Set();
-            newPlayerMatches[matchId].add(player);
-          }
-          return newPlayerMatches;
-        }, {} as { [k: string]: Set<string> });
+    return Object.entries(latestMatches)
+      .reduce((newPlayerMatches, [player, matchId]) => {
+        if (this.lastMatches[player] !== matchId) {
+          newPlayerMatches[matchId] = newPlayerMatches[matchId] || new Set();
+          newPlayerMatches[matchId].add(player);
+        }
+        return newPlayerMatches;
+      }, {} as { [k: string]: Set<string> });
   }
 
   private async handleNewMatch(matchId: string, players: string[]) {
-      this.log.info(`New match found for players: ${players.join(',')}`);
+    players.forEach((player) => this.lastMatches[player] = matchId);
+    this.log.info(`New match found for players: ${players.join(',')}`);
 
-      try {
-        const stats = await this.pubgDataReader.getPlayerMatchStats(matchId, ...players);
-        this.listeners.forEach((fn) => fn(stats));
-        players.forEach((player) => this.lastMatches[player] = matchId);
-      } catch (e) {
-        this.log.error(e);
-      }
+    try {
+      const stats = await this.pubgDataReader.getPlayerMatchStats(matchId, ...players);
+      this.listeners.forEach((fn) => fn(stats));
+    } catch (e) {
+      this.log.error(e);
+    }
   }
 }
