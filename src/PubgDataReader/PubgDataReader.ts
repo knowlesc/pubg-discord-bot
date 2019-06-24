@@ -77,11 +77,13 @@ export class PubgDataReader {
         attackEvents[(event as IPlayerAttack).attacker.name]
           .push(event as IPlayerAttack);
       } else if (event._T === 'LogPlayerKill') {
-        if (killEvents[(event as IPlayerKill).killer.name]) {
+        if ((event as IPlayerKill).killer
+          && killEvents[(event as IPlayerKill).killer.name]) {
           killEvents[(event as IPlayerKill).killer.name]
             .push(event as IPlayerKill);
         }
-        if (killEvents[(event as IPlayerKill).victim.name]) {
+        if ((event as IPlayerKill).victim
+          && killEvents[(event as IPlayerKill).victim.name]) {
           deathEvents[(event as IPlayerKill).victim.name] = event as IPlayerKill;
         }
       } else if (event._T === 'LogParachuteLanding') {

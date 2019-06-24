@@ -120,7 +120,7 @@ export class ImageBuilder {
       .filter((p) => p.common.isGame > 0)
       .map((p) => ({
         state: p.common.isGame,
-        vehicleType: p.vehicle.vehicleType,
+        vehicleType: p.vehicle && p.vehicle.vehicleType,
         ...p.character.location
       })));
 
