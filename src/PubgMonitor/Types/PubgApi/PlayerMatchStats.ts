@@ -47,7 +47,7 @@ export class PlayerMatchStats {
   get killReport() {
     return this.kills.length ?
       this.kills
-        .filter((k) => k.victim.name !== this.name)
+        .filter((k) => k.victim && k.victim.name !== this.name)
         .map((k) => this.formatKillEvent(k))
         .join('\n') :
       '';
@@ -69,12 +69,16 @@ export class PlayerMatchStats {
   }
 
   private formatKillEvent(kill: IPlayerKill, death?: boolean) {
-    const killer = death ? kill.killer.name : kill.victim.name;
+    const killer = death ?
+      kill.killer && kill.killer.name :
+      kill.victim && kill.victim.name;
+    if (!killer) return 'Unknown';
+
     const distance = kill.distance ? Math.round(kill.distance / 100) : 0;
     const placement = this.placements[killer] || '?';
 
     let reason = DamageReason[kill.damageReason];
-    reason = reason ? `/${reason}` : ''
+    reason = reason ? `/${reason}` : '';
     let weapon = DamageCauserName[kill.damageCauserName] || 'Unknown';
     if (weapon === 'Bluezone') return weapon;
     weapon = weapon === 'Player' ? 'Down and Out' : weapon;

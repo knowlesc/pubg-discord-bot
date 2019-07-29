@@ -157,7 +157,7 @@ export class ImageBuilder {
     // Death
     if (death) {
       const causedBy = DamageCauserName[death.damageCauserName];
-      if (causedBy === 'Bluezone' || death.killer.name === playerName) {
+      if (causedBy === 'Bluezone' || (death.killer && death.killer.name === playerName)) {
         const deathCoord = playerCoordinates[playerCoordinates.length - 1];
         if (deathCoord) {
           this.drawX(ctx, deathCoord, 'red', '#000000', 2, 2, 4);
