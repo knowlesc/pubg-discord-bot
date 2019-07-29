@@ -3,5 +3,6 @@ export const MapName: IDictionary = {
   DihorOtok_Main: 'Vikendi',
   Erangel_Main: 'Erangel',
   Range_Main: 'Camp Jackal',
-  Savage_Main: 'Sanhok'
+  Savage_Main: 'Sanhok',
+  Baltic_Main: 'Erangel'
 };

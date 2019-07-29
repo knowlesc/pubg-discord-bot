@@ -37,7 +37,7 @@ export class MessageBuilder {
     }
 
     if (DBNOs) {
-      message.addField('Times Knocked Out', this.codeBlock(DBNOs), true);
+      message.addField('Enemies Knocked', this.codeBlock(DBNOs), true);
     }
 
     if (revives) {
